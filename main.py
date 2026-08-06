@@ -37,7 +37,7 @@ except Exception:
 
 def on_hotkey():
     if not verification_lock.acquire(blocking=False):
-        print("Verification already in progress, ignoring.")
+        print("Verifying")
         return
     try:
         data = vision()

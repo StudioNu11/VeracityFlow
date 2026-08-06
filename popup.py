@@ -78,7 +78,7 @@ class ResultDialog(QDialog):
         self.close_timer = QTimer(self)
         self.close_timer.setSingleShot(True)
         self.close_timer.timeout.connect(self._fade_out)
-        self.close_timer.start(10000)
+        self.close_timer.start(20000)
 
     def _build_card(self, label_text: str, value_text: str) -> QFrame:
         card = QFrame()
