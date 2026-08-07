@@ -10,6 +10,7 @@ from Vision import vision
 from Evidence import evidence
 from Scoring import scoring
 from popup import show_popup
+from playsound import playsound
 
 try:
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("veracityflow.app")
@@ -37,9 +38,11 @@ except Exception:
 
 def on_hotkey():
     if not verification_lock.acquire(blocking=False):
+        playsound('Verifying.mp3')
         print("Verifying")
         return
     try:
+        playsound('Start.mp3')
         data = vision()
         if data.get("claim") is None:
             print("No verifiable claim found.")
