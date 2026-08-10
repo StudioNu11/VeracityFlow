@@ -37,22 +37,27 @@ except Exception:
 
 
 def on_hotkey():
-    if not verification_lock.acquire(blocking=False):
-        playsound('Verifying.mp3')
-        print("Verifying")
-        return
     try:
-        playsound('Start.mp3')
-        data = vision()
-        if data.get("claim") is None:
-            print("No verifiable claim found.")
+        if not verification_lock.acquire(blocking=False):
+            playsound('Verifying.mp3', block=False)
+            print("Verifying")
             return
-        veracity_input = evidence(data)
-        result = scoring(veracity_input)
-        result["claim"] = data["claim"]
-        bridge.result_ready.emit(result)
-    finally:
-        verification_lock.release()
+        try:
+            playsound('Start.mp3', block=False)
+            data = vision()
+            if data.get("claim") is None:
+                print("No verifiable claim found.")
+                return
+            veracity_input = evidence(data)
+            result = scoring(veracity_input)
+            result["claim"] = data["claim"]
+            playsound('Popup.mp3', block=False)
+            bridge.result_ready.emit(result)
+        finally:
+            verification_lock.release()
+    except Exception as e:
+        bridge.result_ready.emit({"error": True, "message": "Verification failed. Try again."})
+
 
 
 keyboard.add_hotkey("ctrl+shift+v", lambda: threading.Thread(target=on_hotkey).start())
