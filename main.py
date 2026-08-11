@@ -11,6 +11,10 @@ from Evidence import evidence
 from Scoring import scoring
 from popup import show_popup
 from playsound import playsound
+from notifypy import Notify
+
+notification = Notify()
+notification.icon = "logo.ico"
 
 try:
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("veracityflow.app")
@@ -40,13 +44,17 @@ def on_hotkey():
     try:
         if not verification_lock.acquire(blocking=False):
             playsound('Verifying.mp3', block=False)
-            print("Verifying")
+            notification.title = "Verifying..."
+            notification.message = "Verification in progress."
+            notification.send(block=False)
             return
         try:
             playsound('Start.mp3', block=False)
             data = vision()
             if data.get("claim") is None:
-                print("No verifiable claim found.")
+                notification.title = "No claim found."
+                notification.message = "No verifiable claim was found."
+                notification.send(block=False)
                 return
             veracity_input = evidence(data)
             result = scoring(veracity_input)
