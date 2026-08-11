@@ -14,6 +14,7 @@ from playsound import playsound
 from notifypy import Notify
 
 notification = Notify()
+notification.application_name = "VeracityFlow"
 notification.icon = "logo.ico"
 
 try:
@@ -64,12 +65,16 @@ def on_hotkey():
         finally:
             verification_lock.release()
     except Exception as e:
-        bridge.result_ready.emit({"error": True, "message": "Verification failed. Try again."})
+        notification.title = "VeracityFlow encountered an error."
+        notification.message = "There was an error during verification, please try again later."
+        notification.send(block=False)
 
 
 
 keyboard.add_hotkey("ctrl+shift+v", lambda: threading.Thread(target=on_hotkey).start())
-print("VeracityFlow running. Press Ctrl+Shift+V to verify.")
+notification.title = "VeracityFlow is running..."
+notification.message = "Press Ctrl+Shift+V to use."
+notification.send(block=False)
 
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon("logo.ico"))

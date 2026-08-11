@@ -21,5 +21,4 @@ def evidence(data):
         f"Claim: {data['claim']} "
         f"Evidence: {evidence_text}"
     ).replace('"', "'")
-    print(veracity_input)
     return veracity_input

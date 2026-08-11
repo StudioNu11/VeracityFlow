@@ -80,5 +80,4 @@ def scoring(veracity_input):
             )
         )
 
-    print(json.loads(response.text))
     return json.loads(response.text)
