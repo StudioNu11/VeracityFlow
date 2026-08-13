@@ -12,6 +12,7 @@ from Scoring import scoring
 from popup import show_popup
 from playsound import playsound
 from notifypy import Notify
+from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
 
 notification = Notify()
 notification.application_name = "VeracityFlow"
@@ -71,12 +72,20 @@ def on_hotkey():
 
 
 
-keyboard.add_hotkey("ctrl+shift+v", lambda: threading.Thread(target=on_hotkey).start())
+keyboard.add_hotkey("alt+shift+z", lambda: threading.Thread(target=on_hotkey).start())
 notification.title = "VeracityFlow is running..."
-notification.message = "Press Ctrl+Shift+V to use."
+notification.message = "Press Alt+Shift+Z to use."
 notification.send(block=False)
 
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon("logo.ico"))
 app.setQuitOnLastWindowClosed(False)
+tray_icon = QSystemTrayIcon(QIcon("logo.ico"), app)
+tray_icon.setToolTip("VeracityFlow")
+menu = QMenu()
+exit_action = QAction("Exit")
+exit_action.triggered.connect(app.quit)
+menu.addAction(exit_action)
+tray_icon.setContextMenu(menu)
+tray_icon.show()
 app.exec_()
