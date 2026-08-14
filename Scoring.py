@@ -1,83 +1,222 @@
-from google import genai
 import json
+import threading
 from gemini_client import client
 from google.genai import types
 
-def scoring(veracity_input):
-    system_prompt = """You are VeracityFlow, an expert digital trust and fact verification engine.
 
-    Your task is to evaluate the credibility of a claim using ONLY the evidence provided.
+MODEL = "gemini-3.5-flash-lite"
 
-    Rules:
-        - Treat the supplied evidence as your ONLY source of truth.
-        - Do NOT rely on prior knowledge, memory, or assumptions unless necessary to interpret the evidence.
-        - Weigh the quality, consistency, relevance, and agreement of the evidence.
-        - Ignore sensational language, opinions, and unsupported statements.
-        - If multiple credible sources agree, increase the trust rating.
-        - If credible sources directly contradict the claim, decrease the trust rating.
-        - If the evidence is mixed or conflicting, assign a moderate trust rating and explain why.
-        - If there is insufficient evidence to reach a reliable conclusion, assign a low confidence score.
-        - Never invent facts or cite information not present in the supplied evidence.
-        - The reasoning must be objective, concise (1 sentence), and reference only the evidence provided.
-        - Reasoning must be 1 sentence. should not be higher than 1 sentence.
+MAX_ATTEMPTS = 3
+MAX_DIFFERENCE = 10
 
-    Scoring Guidelines
 
-    trust_rating (0-100)
-    0-10   : Demonstrably false.
-    11-30  : Mostly false with little supporting evidence.
-    31-49  : More false than true or evidence strongly conflicts.
-    50      : Inconclusive / balanced evidence.
-    51-69  : More true than false but with notable caveats.
-    70-89  : Well supported by multiple credible sources.
-    90-100 : Overwhelmingly supported by consistent, high-quality evidence.
+SYSTEM_PROMPT = """You are VeracityFlow, an expert digital trust and fact verification engine.
 
-    confidence_score (0-100)
-    This measures confidence in YOUR assessment, NOT the truth of the claim.
+Your task is to evaluate the credibility of a claim using ONLY the evidence provided.
 
-    Increase confidence when:
-        - Multiple independent evidence items agree.
-        - Evidence is directly relevant.
-        - Evidence is detailed and specific.
-        - Evidence is internally consistent.
+Rules:
+- Treat the supplied evidence as your ONLY source of truth.
+- Do NOT rely on prior knowledge, memory, or assumptions.
+- Weigh the quality, consistency, relevance, and agreement of the evidence.
+- Ignore sensational language, opinions, and unsupported statements.
+- If multiple credible sources agree, increase the trust rating.
+- If credible sources directly contradict the claim, decrease the trust rating.
+- If the evidence is mixed or conflicting, assign a moderate trust rating.
+- If there is insufficient evidence, lower the confidence score.
+- Never invent facts or cite information not present in the supplied evidence.
+- The reasoning must be objective and exactly 1 sentence.
 
-    Decrease confidence when:
-        - Evidence conflicts.
-        - Evidence is vague or incomplete.
-        - Evidence is speculative.
-        - Evidence is unrelated.
-        - Too few evidence items are provided.
+Scoring Guidelines:
 
-    Output Requirements
-        - Output ONLY valid JSON.
-        - Output ONLY valid JSON.
-        - Output ONLY valid JSON.
-        - Output ONLY valid JSON.
-        - Output ONLY valid JSON.
-        - Do not wrap the JSON in markdown.
-        - Do not include explanations outside the JSON.
-        - Do not include additional keys.
-        - Do not include additional keys.
-        - Do not include additional keys.
-        - Do not include additional keys.
-        - Do not include additional keys.
-        - Do not include additional keys.
-        - Do not include additional keys.
+trust_rating (0-100)
+0-10   : Demonstrably false.
+11-30  : Mostly false with little supporting evidence.
+31-49  : More false than true or evidence strongly conflicts.
+50     : Inconclusive / balanced evidence.
+51-69  : More true than false but with notable caveats.
+70-89  : Well supported by multiple credible sources.
+90-100 : Overwhelmingly supported by consistent, high-quality evidence.
 
-        - The JSON must contain EXACTLY these fields:
+confidence_score (0-100)
+This measures confidence in YOUR assessment, NOT the truth of the claim.
 
-    {
-        "trust_rating": integer,
-        "confidence_score": integer,
-        "reasoning": "string"
-    }"""
+Increase confidence when:
+- Multiple independent evidence items agree.
+- Evidence is directly relevant.
+- Evidence is detailed and specific.
+- Evidence is internally consistent.
 
-    response = client.models.generate_content(
-        model="gemini-3.5-flash-lite",
-        contents=[system_prompt + "\n\n" + veracity_input],
-        config=types.GenerateContentConfig(
+Decrease confidence when:
+- Evidence conflicts.
+- Evidence is vague or incomplete.
+- Evidence is speculative.
+- Evidence is unrelated.
+- Too few evidence items are provided.
+
+Output ONLY valid JSON.
+
+The JSON must contain EXACTLY these fields:
+
+{
+    "trust_rating": integer,
+    "confidence_score": integer,
+    "reasoning": "string"
+}
+"""
+
+
+def score_once(veracity_input, result_container, index):
+    """Run one independent scoring request."""
+
+    try:
+        print(f"[Scoring] Starting scorer {index + 1}...")
+
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=[
+                SYSTEM_PROMPT + "\n\n" + veracity_input
+            ],
+            config=types.GenerateContentConfig(
                 response_mime_type="application/json"
             )
         )
 
-    return json.loads(response.text)
+        result = json.loads(response.text)
+
+        trust = result.get("trust_rating")
+        confidence = result.get("confidence_score")
+
+        if not isinstance(trust, int) or not 0 <= trust <= 100:
+            raise ValueError("Invalid trust_rating")
+
+        if not isinstance(confidence, int) or not 0 <= confidence <= 100:
+            raise ValueError("Invalid confidence_score")
+
+        result_container[index] = result
+
+        print(
+            f"[Scoring] Scorer {index + 1} finished: "
+            f"trust={trust}"
+        )
+
+    except Exception as e:
+        print(f"[Scoring] Scorer {index + 1} failed: {e}")
+        result_container[index] = e
+
+
+def run_two_scorers(veracity_input):
+    """Run two scoring requests simultaneously."""
+
+    results = [None, None]
+
+    thread1 = threading.Thread(
+        target=score_once,
+        args=(veracity_input, results, 0)
+    )
+
+    thread2 = threading.Thread(
+        target=score_once,
+        args=(veracity_input, results, 1)
+    )
+
+    thread1.start()
+    thread2.start()
+
+    # Wait for both requests.
+    thread1.join()
+    thread2.join()
+
+    # Check whether either request failed.
+    if isinstance(results[0], Exception):
+        raise results[0]
+
+    if isinstance(results[1], Exception):
+        raise results[1]
+
+    return results[0], results[1]
+
+
+def scoring(veracity_input):
+
+    best_pair = None
+    best_difference = float("inf")
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+
+        print(f"[Scoring] Attempt {attempt}/{MAX_ATTEMPTS}")
+
+        result1, result2 = run_two_scorers(veracity_input)
+
+        trust1 = result1["trust_rating"]
+        trust2 = result2["trust_rating"]
+
+        difference = abs(trust1 - trust2)
+
+        print(
+            f"[Scoring] Results: "
+            f"{trust1} / {trust2} "
+            f"(difference: {difference})"
+        )
+
+        # Remember the closest pair we've seen.
+        if difference < best_difference:
+            best_difference = difference
+            best_pair = (result1, result2)
+
+        # Good enough agreement.
+        if difference <= MAX_DIFFERENCE:
+
+            print(
+                f"[Scoring] Agreement reached. "
+                f"Difference = {difference}"
+            )
+
+            final_trust = round(
+                (trust1 + trust2) / 2
+            )
+
+            final_confidence = round(
+                (
+                    result1["confidence_score"] +
+                    result2["confidence_score"]
+                ) / 2
+            )
+
+            return {
+                "trust_rating": final_trust,
+                "confidence_score": final_confidence,
+                "reasoning": result1["reasoning"]
+            }
+
+        print(
+            f"[Scoring] Difference too high "
+            f"({difference} > {MAX_DIFFERENCE}). Retrying..."
+        )
+
+    # Maximum attempts reached.
+    result1, result2 = best_pair
+
+    final_trust = round(
+        (
+            result1["trust_rating"] +
+            result2["trust_rating"]
+        ) / 2
+    )
+
+    final_confidence = round(
+        (
+            result1["confidence_score"] +
+            result2["confidence_score"]
+        ) / 2
+    )
+
+    print(
+        f"[Scoring] Maximum attempts reached. "
+        f"Using closest pair (difference: {best_difference})."
+    )
+
+    return {
+        "trust_rating": final_trust,
+        "confidence_score": final_confidence,
+        "reasoning": result1["reasoning"]
+    }

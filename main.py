@@ -13,6 +13,7 @@ from popup import show_popup
 from playsound import playsound
 from notifypy import Notify
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
+import mute
 
 notification = Notify()
 notification.application_name = "VeracityFlow"
@@ -41,17 +42,22 @@ try:
 except Exception:
     pass
 
+def makesound(file):
+    if mute.is_muted():
+        return
+    else:
+        playsound(file, block = False)
 
 def on_hotkey():
     try:
         if not verification_lock.acquire(blocking=False):
-            playsound('Verifying.mp3', block=False)
+            makesound('Verifying.mp3')
             notification.title = "Verifying..."
             notification.message = "Verification in progress."
             notification.send(block=False)
             return
         try:
-            playsound('Start.mp3', block=False)
+            makesound('Start.mp3')
             data = vision()
             if data.get("claim") is None:
                 notification.title = "No claim found."
@@ -61,7 +67,7 @@ def on_hotkey():
             veracity_input = evidence(data)
             result = scoring(veracity_input)
             result["claim"] = data["claim"]
-            playsound('Popup.mp3', block=False)
+            makesound('Popup.mp3')
             bridge.result_ready.emit(result)
         finally:
             verification_lock.release()
