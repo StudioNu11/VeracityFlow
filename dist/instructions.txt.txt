@@ -1,0 +1,19 @@
+VeracityFlow is a digital trust assistant built to analyze and help let you understand information on your screen can be trusted.
+
+To use, first select the zip and extract all. Then, go inside the folder to find "veracityflow.exe", double click, and wait until you get a notification saying VeracityFlow is running.
+
+Controls -
+In order to verify a claim onscreen press - Alt+Shift+Z
+To mute or unmute sound effects, press - Alt+Shift+M
+
+
+To use -
+whenever you see info you want to verify, hit the hotkey to verify, once you hear teh sound effect for your hotkey, you can do whatever you want on your computer, in the background veracityflow will be verifying and coming to a conclusion, once done you will hear a sound effect, and see a popup, the popup contains the information.
+
+
+Once verification is done u will see a popup along with a sound effect, The popup contains the following -
+Claim - The claim it extracted from your screen
+Trust - The trust is the main score out of 100, the rates how trustable or real the claim is
+Confidence - The confidence is how sure the ai is at its result, if the confidence is below 60%, it will send a notification saying not enough info was found instead of the popup
+Reasoning - The reasoning behind the result
+
