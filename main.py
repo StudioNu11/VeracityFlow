@@ -67,8 +67,13 @@ def on_hotkey():
             veracity_input = evidence(data)
             result = scoring(veracity_input)
             result["claim"] = data["claim"]
-            makesound('Popup.mp3')
-            bridge.result_ready.emit(result)
+            if result["confidence_score"] > 60:
+                makesound('Popup.mp3')
+                bridge.result_ready.emit(result)
+            else:
+                notification.title = "Not enough verifiable information"
+                notification.message = "Not enough info found. The claim might be too new. Try again later"
+                notification.send(block=False)
         finally:
             verification_lock.release()
     except Exception as e:

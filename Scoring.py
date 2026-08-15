@@ -1,6 +1,7 @@
 import json
 import threading
 from gemini_client import client
+from gemini_client_2 import client2
 from google.genai import types
 
 
@@ -65,13 +66,10 @@ The JSON must contain EXACTLY these fields:
 """
 
 
-def score_once(veracity_input, result_container, index):
-    """Run one independent scoring request."""
+def score_once(veracity_input, result_container, index, gemini_client):
 
     try:
-        print(f"[Scoring] Starting scorer {index + 1}...")
-
-        response = client.models.generate_content(
+        response = gemini_client.models.generate_content(
             model=MODEL,
             contents=[
                 SYSTEM_PROMPT + "\n\n" + veracity_input
@@ -94,29 +92,24 @@ def score_once(veracity_input, result_container, index):
 
         result_container[index] = result
 
-        print(
-            f"[Scoring] Scorer {index + 1} finished: "
-            f"trust={trust}"
-        )
-
     except Exception as e:
-        print(f"[Scoring] Scorer {index + 1} failed: {e}")
         result_container[index] = e
 
 
 def run_two_scorers(veracity_input):
-    """Run two scoring requests simultaneously."""
 
     results = [None, None]
 
+    # Scorer 1 → Client 1
     thread1 = threading.Thread(
         target=score_once,
-        args=(veracity_input, results, 0)
+        args=(veracity_input, results, 0, client)
     )
 
+    # Scorer 2 → Client 2
     thread2 = threading.Thread(
         target=score_once,
-        args=(veracity_input, results, 1)
+        args=(veracity_input, results, 1, client2)
     )
 
     thread1.start()
@@ -143,20 +136,12 @@ def scoring(veracity_input):
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
 
-        print(f"[Scoring] Attempt {attempt}/{MAX_ATTEMPTS}")
-
         result1, result2 = run_two_scorers(veracity_input)
 
         trust1 = result1["trust_rating"]
         trust2 = result2["trust_rating"]
 
         difference = abs(trust1 - trust2)
-
-        print(
-            f"[Scoring] Results: "
-            f"{trust1} / {trust2} "
-            f"(difference: {difference})"
-        )
 
         # Remember the closest pair we've seen.
         if difference < best_difference:
@@ -165,11 +150,6 @@ def scoring(veracity_input):
 
         # Good enough agreement.
         if difference <= MAX_DIFFERENCE:
-
-            print(
-                f"[Scoring] Agreement reached. "
-                f"Difference = {difference}"
-            )
 
             final_trust = round(
                 (trust1 + trust2) / 2
@@ -188,11 +168,6 @@ def scoring(veracity_input):
                 "reasoning": result1["reasoning"]
             }
 
-        print(
-            f"[Scoring] Difference too high "
-            f"({difference} > {MAX_DIFFERENCE}). Retrying..."
-        )
-
     # Maximum attempts reached.
     result1, result2 = best_pair
 
@@ -208,11 +183,6 @@ def scoring(veracity_input):
             result1["confidence_score"] +
             result2["confidence_score"]
         ) / 2
-    )
-
-    print(
-        f"[Scoring] Maximum attempts reached. "
-        f"Using closest pair (difference: {best_difference})."
     )
 
     return {
