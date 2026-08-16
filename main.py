@@ -78,7 +78,7 @@ def on_hotkey():
             verification_lock.release()
     except Exception as e:
         notification.title = "VeracityFlow encountered an error."
-        notification.message = "There was an error during verification, please try again later."
+        notification.message = "There was an error during verification, please try again later. Error: " + str(e)
         notification.send(block=False)
 
 
