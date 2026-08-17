@@ -46,7 +46,10 @@ def makesound(file):
     if mute.is_muted():
         return
     else:
-        playsound(file, block = False)
+        if not file == "Start.mp3":
+            playsound(file, block = True)
+        else:
+            playsound(file, block = False)
 
 def on_hotkey():
     try:
