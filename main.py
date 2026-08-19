@@ -1,4 +1,5 @@
 import sys
+import os
 import ctypes
 import keyboard
 import threading
@@ -15,9 +16,17 @@ from notifypy import Notify
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
 import mute
 
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def get_path(filename):
+    return os.path.join(BASE_DIR, filename)
+
 notification = Notify()
 notification.application_name = "VeracityFlow"
-notification.icon = "logo.ico"
+notification.icon = get_path("logo.ico")
 
 try:
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("veracityflow.app")
@@ -47,9 +56,9 @@ def makesound(file):
         return
     else:
         if not file == "Start.mp3":
-            playsound(file, block = True)
+            playsound(get_path(file), block = True)
         else:
-            playsound(file, block = False)
+            playsound(get_path(file), block = False)
 
 def on_hotkey():
     try:
@@ -92,9 +101,9 @@ notification.message = "Press Alt+Shift+Z to use."
 notification.send(block=False)
 
 app = QApplication(sys.argv)
-app.setWindowIcon(QIcon("logo.ico"))
+app.setWindowIcon(QIcon(get_path("logo.ico")))
 app.setQuitOnLastWindowClosed(False)
-tray_icon = QSystemTrayIcon(QIcon("logo.ico"), app)
+tray_icon = QSystemTrayIcon(QIcon(get_path("logo.ico")), app)
 tray_icon.setToolTip("VeracityFlow")
 menu = QMenu()
 exit_action = QAction("Exit")
