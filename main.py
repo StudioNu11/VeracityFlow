@@ -15,6 +15,7 @@ from playsound import playsound
 from notifypy import Notify
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
 import mute
+from File import file
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
@@ -95,7 +96,43 @@ def on_hotkey():
 
 
 
+def on_file_hotkey():
+    try:
+        if not verification_lock.acquire(blocking=False):
+            makesound('Verifying.mp3')
+            notification.title = "Verifying..."
+            notification.message = "Verification in progress."
+            notification.send(block=False)
+            return
+        try:
+            makesound('Start.mp3')
+            data = file()
+            if data.get("claim") is None:
+                notification.title = "No claim found."
+                notification.message = "No verifiable claim was found."
+                notification.send(block=False)
+                return
+            veracity_input = evidence(data)
+            result = scoring(veracity_input)
+            result["claim"] = data["claim"]
+            if result["confidence_score"] > 60:
+                makesound('Popup.mp3')
+                bridge.result_ready.emit(result)
+            else:
+                notification.title = "Not enough verifiable information"
+                notification.message = "Not enough info found. The claim might be too new. Try again later"
+                notification.send(block=False)
+        finally:
+            verification_lock.release()
+    except Exception as e:
+        notification.title = "VeracityFlow encountered an error."
+        notification.message = "There was an error during verification, please try again later. Error: " + str(e)
+        notification.send(block=False)
+
+
+
 keyboard.add_hotkey("alt+shift+z", lambda: threading.Thread(target=on_hotkey).start())
+keyboard.add_hotkey("alt+shift+f", lambda: threading.Thread(target=on_file_hotkey).start())
 notification.title = "VeracityFlow is running..."
 notification.message = "Press Alt+Shift+Z to use."
 notification.send(block=False)
